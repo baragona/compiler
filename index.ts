@@ -8,8 +8,15 @@ type Token =
   | { type: "rightParenthesis" };
 
 type TokenTree = (Token | TokenTree)[];
-type Operator = "+" | "-" | "*" | "/" | "=";
-const operators: readonly string[] = Object.freeze(["+", "-", "*", "/", "="]);
+type Operator = "+" | "-" | "*" | "/" | "=" | ";";
+const operators: readonly string[] = Object.freeze([
+  "+",
+  "-",
+  "*",
+  "/",
+  "=",
+  ";",
+]);
 
 type Expression =
   | {
@@ -48,7 +55,7 @@ type StackMachineNode =
 
 expression := number | expression bin_operator expression | '(' expression ')' | unary_operator expression 
 
-bin_operator := '+' | '-' | '*' | '/'
+bin_operator := '+' | '-' | '*' | '/' | '=' | ';'
 
 unary_operator := '+' | '-'
 
@@ -149,7 +156,7 @@ function removeParenthesis(tokens: Token[]): TokenTree {
 }
 
 function parseTokensToTree(tokens: TokenTree): Expression {
-  const operatorPrecedence: string[][] = [["="], ["+", "-"], ["*", "/"]];
+  const operatorPrecedence: string[][] = [[";"], ["="], ["+", "-"], ["*", "/"]];
 
   for (const precedenceLevel of operatorPrecedence) {
     // for each prcedence level
@@ -253,7 +260,7 @@ function postOrderSequenceFromExpression(
 
 function interpretStackMachine(
   stackMachine: StackMachineNode[]
-): number | string {
+): (number | string)[] {
   const stack: (number | string)[] = [];
   const variables: { [key: string]: number } = {};
   for (const node of stackMachine) {
@@ -274,53 +281,56 @@ function interpretStackMachine(
       // }
       // variables[node.value] = value;
     } else if (node.type === "operator") {
-      const right = stack.pop();
-      const left = stack.pop();
-      if (left === undefined || right === undefined) {
-        throw new Error("Not enough operands");
-      }
-      if (
-        node.operator === "+" ||
-        node.operator === "-" ||
-        node.operator === "*" ||
-        node.operator === "/"
-      ) {
-        if (typeof left !== "number" || typeof right !== "number") {
-          throw new Error(
-            "Operands must be numbers for arithmetic operator " + node.operator
-          );
-        }
-
-        if (node.operator === "+") {
-          stack.push(left + right);
-        } else if (node.operator === "-") {
-          stack.push(left - right);
-        } else if (node.operator === "*") {
-          stack.push(left * right);
-        } else if (node.operator === "/") {
-          stack.push(left / right);
-        }
-      } else if (node.operator === "=") {
-        if (typeof left !== "string") {
-          throw new Error("Left operand of = must be a variable name");
-        }
-        if (typeof right !== "number") {
-          throw new Error("Right operand of = must be a number");
-        }
-
-        variables[left] = right;
+      if (node.operator === ";") {
+        // do nothing
       } else {
-        throw new Error(`Invalid operator ${node.operator}`);
+        const right = stack.pop();
+        const left = stack.pop();
+        if (left === undefined || right === undefined) {
+          throw new Error("Not enough operands");
+        }
+        if (
+          node.operator === "+" ||
+          node.operator === "-" ||
+          node.operator === "*" ||
+          node.operator === "/"
+        ) {
+          if (typeof left !== "number" || typeof right !== "number") {
+            throw new Error(
+              "Operands must be numbers for arithmetic operator " +
+                node.operator
+            );
+          }
+
+          if (node.operator === "+") {
+            stack.push(left + right);
+          } else if (node.operator === "-") {
+            stack.push(left - right);
+          } else if (node.operator === "*") {
+            stack.push(left * right);
+          } else if (node.operator === "/") {
+            stack.push(left / right);
+          }
+        } else if (node.operator === "=") {
+          if (typeof left !== "string") {
+            throw new Error("Left operand of = must be a variable name");
+          }
+          if (typeof right !== "number") {
+            throw new Error("Right operand of = must be a number");
+          }
+
+          variables[left] = right;
+        } else {
+          throw new Error(`Invalid operator ${node.operator}`);
+        }
       }
     } else {
       throw new Error("Invalid node type");
     }
   }
-  if (stack.length !== 0) {
-    throw new Error("Stack should be empty after interpreting");
-  }
+  console.log("stack after interpreting:", stack);
   console.log("vars after execution:", variables);
-  return stack[0];
+  return stack;
 }
 
 // if main.ts is run directly, run the tests

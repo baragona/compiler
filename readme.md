@@ -18,6 +18,8 @@ npm run start
 
 - add variables
 - add assignment
+- add compound statements
+- add print
 - add if
 - add else
 - add booleans and boolean operators
