@@ -8,15 +8,23 @@ type Token =
   | { type: "rightParenthesis" };
 
 type TokenTree = (Token | TokenTree)[];
-type Operator = "+" | "-" | "*" | "/";
-const operators: readonly string[] = Object.freeze(["+", "-", "*", "/"]);
+type Operator = "+" | "-" | "*" | "/" | "=";
+const operators: readonly string[] = Object.freeze(["+", "-", "*", "/", "="]);
 
 type Expression =
   | {
+      type: "operator";
       operator: Operator;
       operands: Expression[];
     }
-  | number;
+  | {
+      type: "number";
+      value: number;
+    }
+  | {
+      type: "name";
+      value: string;
+    };
 
 /* 
 
@@ -123,10 +131,7 @@ function removeParenthesis(tokens: Token[]): TokenTree {
 }
 
 function parseTokensToTree(tokens: TokenTree): Expression {
-  const operatorPrecedence: string[][] = [
-    ["+", "-"],
-    ["*", "/"],
-  ];
+  const operatorPrecedence: string[][] = [["="], ["+", "-"], ["*", "/"]];
 
   for (const precedenceLevel of operatorPrecedence) {
     // for each prcedence level
@@ -148,6 +153,7 @@ function parseTokensToTree(tokens: TokenTree): Expression {
         const left = tokens.slice(0, i);
         const right = tokens.slice(i + 1);
         return {
+          type: "operator",
           operator: operator,
           operands: [parseTokensToTree(left), parseTokensToTree(right)],
         };
@@ -168,12 +174,15 @@ function parseTokensToTree(tokens: TokenTree): Expression {
   }
 
   if (token.type === "number") {
-    // check that it is a number
-    return token.value;
+    return { type: "number", value: token.value };
+  }
+
+  if (token.type === "name") {
+    return { type: "name", value: token.value };
   }
 
   throw new Error(
-    "There is only one token, and it is not a string or an array of tokens"
+    "There is only one token here, but it is not a number, nor an operator, nor a variable name"
   );
 }
 
