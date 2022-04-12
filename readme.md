@@ -26,12 +26,15 @@ npm run start
 - add for
 - add functions
 - add return
+- add floating point numbers
 
 - add linux asm targets
 - call system calls
 - add wasm targets
 - add macos asm targets
 
-- primitive types:
+# primitive types:
+
 - uint8/16/32/64 int8/16/32/64
 - float32/64
+- pointer
