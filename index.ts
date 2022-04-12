@@ -26,6 +26,24 @@ type Expression =
       value: string;
     };
 
+type StackMachineNode =
+  | {
+      type: "operator";
+      operator: Operator;
+    }
+  | {
+      type: "pushNumber";
+      value: number;
+    }
+  | {
+      type: "readVariableToStack";
+      value: string;
+    }
+  | {
+      type: "writeVariableFromStack";
+      value: string;
+    };
+
 /* 
 
 expression := number | expression bin_operator expression | '(' expression ')' | unary_operator expression 
@@ -193,6 +211,118 @@ function stringToExpression(exp: string): Expression {
   return parseTokensToTree(tokensWithoutParenthesis);
 }
 
+function postOrderSequenceFromExpression(
+  exp: Expression,
+  parent_exp: Expression | null,
+  from_side: "left" | "right" | null
+): StackMachineNode[] {
+  if (exp.type === "number") {
+    return [{ type: "pushNumber", value: exp.value }];
+  }
+
+  if (exp.type === "name") {
+    if (
+      parent_exp &&
+      parent_exp.type === "operator" &&
+      parent_exp.operator === "=" &&
+      from_side === "left"
+    ) {
+      // if the name is the left operand of an assignment operator,
+      // then we are writing to a variable
+      return [{ type: "writeVariableFromStack", value: exp.value }];
+    } else {
+      // otherwise, we are reading a variable
+      return [{ type: "readVariableToStack", value: exp.value }];
+    }
+  }
+
+  if (exp.type === "operator") {
+    const left = postOrderSequenceFromExpression(exp.operands[0], exp, "left");
+    const right = postOrderSequenceFromExpression(
+      exp.operands[1],
+      exp,
+      "right"
+    );
+    return [...left, ...right, { type: "operator", operator: exp.operator }];
+  }
+
+  throw new Error(
+    "In postOrderSequenceFromExpression, invalid expression - not a number, nor an operator, nor a variable name"
+  );
+}
+
+function interpretStackMachine(
+  stackMachine: StackMachineNode[]
+): number | string {
+  const stack: (number | string)[] = [];
+  const variables: { [key: string]: number } = {};
+  for (const node of stackMachine) {
+    if (node.type === "pushNumber") {
+      stack.push(node.value);
+    } else if (node.type === "readVariableToStack") {
+      const variable = variables[node.value];
+      if (variable === undefined) {
+        throw new Error(`Variable ${node.value} is not defined`);
+      }
+      stack.push(variable);
+    } else if (node.type === "writeVariableFromStack") {
+      stack.push(node.value);
+
+      // const value = stack.pop();
+      // if (value === undefined) {
+      //   throw new Error("Stack is empty");
+      // }
+      // variables[node.value] = value;
+    } else if (node.type === "operator") {
+      const right = stack.pop();
+      const left = stack.pop();
+      if (left === undefined || right === undefined) {
+        throw new Error("Not enough operands");
+      }
+      if (
+        node.operator === "+" ||
+        node.operator === "-" ||
+        node.operator === "*" ||
+        node.operator === "/"
+      ) {
+        if (typeof left !== "number" || typeof right !== "number") {
+          throw new Error(
+            "Operands must be numbers for arithmetic operator " + node.operator
+          );
+        }
+
+        if (node.operator === "+") {
+          stack.push(left + right);
+        } else if (node.operator === "-") {
+          stack.push(left - right);
+        } else if (node.operator === "*") {
+          stack.push(left * right);
+        } else if (node.operator === "/") {
+          stack.push(left / right);
+        }
+      } else if (node.operator === "=") {
+        if (typeof left !== "string") {
+          throw new Error("Left operand of = must be a variable name");
+        }
+        if (typeof right !== "number") {
+          throw new Error("Right operand of = must be a number");
+        }
+
+        variables[left] = right;
+      } else {
+        throw new Error(`Invalid operator ${node.operator}`);
+      }
+    } else {
+      throw new Error("Invalid node type");
+    }
+  }
+  if (stack.length !== 0) {
+    throw new Error("Stack should be empty after interpreting");
+  }
+  console.log("vars after execution:", variables);
+  return stack[0];
+}
+
 // if main.ts is run directly, run the tests
 if (require.main === module) {
   const result1 = tokenizeExpression("(1 + 2) * 3");
@@ -215,6 +345,10 @@ if (require.main === module) {
     try {
       const result = stringToExpression(line);
       console.log(result);
+      const sequence = postOrderSequenceFromExpression(result, null, null);
+      console.log(sequence);
+      const result2 = interpretStackMachine(sequence);
+      console.log(result2);
     } catch (e) {
       console.error(e);
     }
