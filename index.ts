@@ -5,7 +5,9 @@ type Token =
   | { type: "operator"; value: Operator }
   | { type: "name"; value: string }
   | { type: "leftParenthesis" }
-  | { type: "rightParenthesis" };
+  | { type: "rightParenthesis" }
+  | { type: "if" }
+  | { type: "else" };
 
 type TokenTree = (Token | TokenTree)[];
 type Operator = "+" | "-" | "*" | "/" | "=" | ";";
@@ -104,7 +106,16 @@ function tokenizeExpression(exp: string): Token[] {
         varName += exp[i + 1];
         i++;
       }
-      tokens.push({ type: "name", value: varName });
+
+      // check if we have a keyword:
+      if (varName === "if") {
+        tokens.push({ type: "if" });
+      } else if (varName === "else") {
+        tokens.push({ type: "else" });
+      } else {
+        // variable name
+        tokens.push({ type: "name", value: varName });
+      }
       continue;
     }
 
@@ -332,7 +343,14 @@ function interpretStackMachine(
   console.log("vars after execution:", variables);
   return stack;
 }
-
+export function interpretString(line: string) {
+  const result = stringToExpression(line);
+  //console.log(result);
+  const sequence = postOrderSequenceFromExpression(result, null, null);
+  //console.log(sequence);
+  const result2 = interpretStackMachine(sequence);
+  return result2;
+}
 // if main.ts is run directly, run the tests
 if (require.main === module) {
   const result1 = tokenizeExpression("(1 + 2) * 3");

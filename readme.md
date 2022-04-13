@@ -14,6 +14,10 @@ use syscalls on linux, and libSystem on macos
 
 npm run start
 
+# test
+
+npm test
+
 # todo
 
 - add variables
